@@ -9,6 +9,8 @@ import HomePage from '../pages/public/HomePage'
 
 import LoginPage from '../pages/auth/LoginPage'
 import RegisterPage from '../pages/auth/RegisterPage'
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '../pages/auth/ResetPasswordPage'
 
 import SuperAdminDashboard from '../pages/dashboard/superAdmin/SuperAdminDashboard'
 import UsersManagementPage from '../pages/dashboard/superAdmin/UsersManagementPage'
@@ -48,6 +50,16 @@ function AppRoutes() {
  </UnAuthenticatedRoute>
  }
  />
+ <Route
+ path="/auth/forgot-password"
+ element={
+ <UnAuthenticatedRoute>
+ <ForgotPasswordPage />
+ </UnAuthenticatedRoute>
+ }
+ />
+ {/* Not wrapped: the reset link signs the user in, which would redirect away */}
+ <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
  <Route
  path="/auth/register"
  element={
