@@ -7,6 +7,11 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 grant usage on schema auth to anon, authenticated; grant execute on function auth.uid() to anon, authenticated;
 create schema storage; create table storage.objects (id serial primary key, bucket_id text, name text);
 alter table storage.objects enable row level security;
+-- The open policies the live project had before the migration (must be dropped by it)
+create policy "avatar_url 1oj01fe_1" on storage.objects for insert to public with check (bucket_id = 'avatars');
+create policy "avatar_url 1oj01fe_2" on storage.objects for update to public using (bucket_id = 'avatars');
+create policy "cities 1cjba6h_1" on storage.objects for insert to public with check (bucket_id = 'cities');
+create policy "vehicles xb7f0n_1" on storage.objects for insert to public with check (bucket_id = 'vehicles');
 grant usage on schema storage to anon, authenticated; grant all on storage.objects to anon, authenticated; grant usage on all sequences in schema storage to anon, authenticated;
 create table public.cities (id uuid primary key default gen_random_uuid(), name text);
 create table public.stations (id uuid primary key default gen_random_uuid(), name text, city_id uuid references public.cities);

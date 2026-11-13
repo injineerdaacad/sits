@@ -52,6 +52,9 @@ select expect_denied('U1 cannot pay against U2 booking', $$insert into payments(
 select expect_denied('U1 cannot add a vehicle', $$insert into vehicles(plate,station_id) values ('X','50000000-0000-0000-0000-000000000001')$$);
 select expect_denied('U1 cannot delete a city', $$delete from cities$$);
 select expect_denied('U1 cannot overwrite U2 avatar', $$update storage.objects set name='hacked' where name like '00000000-0000-0000-0000-0000000000b2-%'$$);
+select expect_denied('U1 cannot upload a city image', $$insert into storage.objects(bucket_id,name) values ('cities','x.png')$$);
+select expect_denied('U1 cannot upload a vehicle image', $$insert into storage.objects(bucket_id,name) values ('vehicles','x.png')$$);
+select expect_denied('U1 cannot upload an avatar named for U2', $$insert into storage.objects(bucket_id,name) values ('avatars','00000000-0000-0000-0000-0000000000b2-y.png')$$);
 commit;
 begin; set local role authenticated; select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',true);
 insert into passenger_bookings(route_id,user_id,full_name,seat_count,status) values ('70000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000b1','U1',2,'PENDING');
@@ -79,6 +82,7 @@ select expect_denied('A1 cannot move own vehicle to station 2', $$update vehicle
 select expect_denied('A1 cannot add route on station-2 vehicle', $$insert into routes(vehicle_id) values ('e0000000-0000-0000-0000-000000000002')$$);
 select expect_denied('A1 cannot promote self', $$update profiles set role='SUPER_ADMIN' where id='00000000-0000-0000-0000-0000000000a1'$$);
 select expect_denied('A1 cannot create stations', $$insert into stations(name) values ('x')$$);
+select expect_denied('A1 cannot upload a city image', $$insert into storage.objects(bucket_id,name) values ('cities','x.png')$$);
 commit;
 begin; set local role authenticated; select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a1',true);
 update passenger_bookings set status='CONFIRMED' where id='b0000000-0000-0000-0000-000000000001';
@@ -89,6 +93,8 @@ insert into vehicles(plate,station_id) values ('NEW','50000000-0000-0000-0000-00
 select expect('A1 can add vehicle to own station', true);
 insert into routes(vehicle_id) values ('e0000000-0000-0000-0000-000000000001');
 select expect('A1 can add route for own vehicle', true);
+insert into storage.objects(bucket_id,name) values ('vehicles','v1.png');
+select expect('A1 can upload a vehicle image', true);
 rollback;
 
 -- ---------------- SUPER ADMIN
@@ -99,6 +105,8 @@ select expect('Super can create an ADMIN profile', true);
 update profiles set role='ADMIN', station_id='50000000-0000-0000-0000-000000000001' where id='00000000-0000-0000-0000-0000000000b2';
 select expect('Super can change a role and station', (select role from profiles where id='00000000-0000-0000-0000-0000000000b2')='ADMIN');
 insert into stations(name) values ('St3'); select expect('Super can create a station', true);
+insert into storage.objects(bucket_id,name) values ('cities','mogadishu.png');
+select expect('Super can upload a city image', true);
 rollback;
 
 -- ---------------- ANON (not logged in)
@@ -106,6 +114,9 @@ begin; set local role anon; select set_config('request.jwt.claim.sub','',true);
 select expect('Anon can search routes and cities', (select count(*) from routes)=2 and (select count(*) from cities)=2);
 select expect('Anon sees no bookings, payments or profiles', (select count(*) from passenger_bookings)=0 and (select count(*) from payments)=0 and (select count(*) from profiles)=0);
 select expect_denied('Anon cannot create bookings', $$insert into passenger_bookings(route_id,user_id,status) values ('70000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000b1','PENDING')$$);
+select expect_denied('Anon cannot upload avatars', $$insert into storage.objects(bucket_id,name) values ('avatars','anon.png')$$);
+select expect_denied('Anon cannot delete avatars', $$delete from storage.objects where bucket_id='avatars'$$);
+select expect('Anon can view avatars', (select count(*) from storage.objects where bucket_id='avatars') >= 1);
 commit;
 
 -- New sign-up (no profile yet) creates own USER profile

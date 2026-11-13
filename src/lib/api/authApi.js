@@ -162,9 +162,11 @@ export async function createUserWithProfile(userData) {
  if (station_id) profileData.station_id = station_id
  if (phone) profileData.phone = phone
 
+ // The on_auth_user_created trigger already inserted a USER profile, so
+ // upsert to set the requested role, station and details.
  const { data: profile, error: profileError } = await supabase
  .from('profiles')
- .insert(profileData)
+ .upsert(profileData, { onConflict: 'id' })
  .select()
  .single()
 

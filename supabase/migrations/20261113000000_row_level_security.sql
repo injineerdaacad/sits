@@ -293,10 +293,24 @@ create policy "payments: super admin deletes" on public.payments
   using (public.is_super_admin());
 
 -- ---------------------------------------------------------------------------
--- Storage: avatars bucket. Files are named "<user id>-<random>.<ext>".
+-- Storage. The earlier policies let anyone, even signed out, upload, replace
+-- or delete any file in these buckets. Replace them:
+--   avatars   everyone reads; users write only "<their user id>-..." files
+--   cities    everyone reads; super admin writes
+--   vehicles  everyone reads; super admin or station admins write
 -- ---------------------------------------------------------------------------
-drop policy if exists "avatars: everyone reads" on storage.objects;
-drop policy if exists "avatars: users manage their own" on storage.objects;
+do $$
+declare pol record;
+begin
+  for pol in
+    select policyname from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and (coalesce(qual, '') ~ 'bucket_id = ''(avatars|cities|vehicles)'''
+           or coalesce(with_check, '') ~ 'bucket_id = ''(avatars|cities|vehicles)''')
+  loop
+    execute format('drop policy %I on storage.objects', pol.policyname);
+  end loop;
+end $$;
 
 create policy "avatars: everyone reads" on storage.objects
   for select to anon, authenticated
@@ -308,3 +322,23 @@ create policy "avatars: users manage their own" on storage.objects
          and (name like auth.uid()::text || '-%' or public.is_super_admin()))
   with check (bucket_id = 'avatars'
               and (name like auth.uid()::text || '-%' or public.is_super_admin()));
+
+create policy "cities images: everyone reads" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'cities');
+
+create policy "cities images: super admin writes" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'cities' and public.is_super_admin())
+  with check (bucket_id = 'cities' and public.is_super_admin());
+
+create policy "vehicle images: everyone reads" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'vehicles');
+
+create policy "vehicle images: staff writes" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'vehicles'
+         and (public.is_super_admin() or public.auth_role() = 'ADMIN'))
+  with check (bucket_id = 'vehicles'
+              and (public.is_super_admin() or public.auth_role() = 'ADMIN'));
