@@ -26,4 +26,9 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Seed scripts run in Node, not the browser
+    files: ['seeds/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])
